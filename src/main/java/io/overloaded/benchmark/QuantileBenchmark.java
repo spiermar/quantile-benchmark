@@ -5,9 +5,12 @@ import com.google.caliper.BeforeExperiment;
 import com.google.caliper.Param;
 import com.tdunning.math.stats.AVLTreeDigest;
 import com.tdunning.math.stats.TDigest;
+import org.apache.commons.math3.stat.StatUtils;
 import org.apache.mahout.math.jet.random.AbstractDistribution;
 import org.apache.mahout.math.jet.random.Normal;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -40,27 +43,35 @@ public final class QuantileBenchmark {
     @Param({"0.5","0.9","0.95","0.99"})
     double quantile;
 
-    @Param({"10", "100", "1000"})
-    double compression;
+    // @Param({"10", "100", "1000"})
+    double compression = 10.0;
 
-    @Param
-    TDigestFactory tdigestFactory;
+    // @Param
+    TDigestFactory tdigestFactory = TDigestFactory.AVL_TREE;
 
-    @Param
-    DistributionFactory distributionFactory;
+    // @Param
+    DistributionFactory distributionFactory = DistributionFactory.NORMAL;
+
+    @Param({"10000"})
+    int initialArraySize;
 
     Random random;
     TDigest tdigest;
     AbstractDistribution distribution;
+    List<Double> valueList;
+    double[] valueArray;
 
     @BeforeExperiment
     public void setUp() throws Exception {
         random = ThreadLocalRandom.current();
         tdigest = tdigestFactory.create(compression);
+        valueList = new ArrayList();
         distribution = distributionFactory.create(random);
         // first values are cheap to add, so pre-fill the t-digest to have more realistic results
-        for (int i = 0; i < 10000; ++i) {
-            tdigest.add(distribution.nextDouble());
+        for (int i = 0; i < initialArraySize; ++i) {
+            Double value = distribution.nextDouble();
+            tdigest.add(value);
+            valueList.add(value);
         }
     }
 
@@ -73,10 +84,13 @@ public final class QuantileBenchmark {
     }
 
     @Benchmark
-    double apachemath(int reps) {
+    double math(int reps) {
+        for (int i = 0; i < reps; ++i) {
+            this.valueList.add(this.distribution.nextDouble());
+        }
+        this.valueArray = new double[this.valueList.size()];
+        for(int i = 0; i < this.valueList.size(); i++) valueArray[i] = this.valueList.get(i);
 
-        //TODO: implement apache math benchmark
-
-        return 0.0;
+        return StatUtils.percentile(valueArray, this.quantile);
     }
 }
