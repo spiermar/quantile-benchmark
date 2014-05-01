@@ -3,14 +3,10 @@ package io.overloaded.benchmark;
 import com.google.caliper.Benchmark;
 import com.google.caliper.BeforeExperiment;
 import com.google.caliper.Param;
-import com.tdunning.math.stats.AVLTreeDigest;
-import com.tdunning.math.stats.TDigest;
-import org.apache.commons.math3.stat.StatUtils;
+
 import org.apache.mahout.math.jet.random.AbstractDistribution;
 import org.apache.mahout.math.jet.random.Normal;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -18,15 +14,22 @@ import java.util.concurrent.ThreadLocalRandom;
  * @author mspier
  */
 public final class QuantileBenchmark {
-    private static enum TDigestFactory {
-        AVL_TREE {
+
+    private static enum ImplFactory {
+        T_DIGEST {
             @Override
-            TDigest create(double compression) {
-                return new AVLTreeDigest(compression);
+            IQuantile create(int size, AbstractDistribution distribution) {
+                return new TDigestQuantileImpl(size, distribution);
+            }
+        },
+        APACHE_MATH {
+            @Override
+            IQuantile create(int size, AbstractDistribution distribution) {
+                return new ApacheMathQuantileImpl(size, distribution);
             }
         };
 
-        abstract TDigest create(double compression);
+        abstract IQuantile create(int size, AbstractDistribution distribution);
     }
 
     private static enum DistributionFactory {
@@ -43,54 +46,32 @@ public final class QuantileBenchmark {
     @Param({"0.5","0.9","0.95","0.99"})
     double quantile;
 
-    // @Param({"10", "100", "1000"})
-    double compression = 10.0;
+    @Param
+    ImplFactory implFactory;
 
-    // @Param
-    TDigestFactory tdigestFactory = TDigestFactory.AVL_TREE;
+    @Param
+    DistributionFactory distributionFactory;
 
-    // @Param
-    DistributionFactory distributionFactory = DistributionFactory.NORMAL;
-
-    @Param({"10000"})
-    int initialArraySize;
+    @Param({"10000","100000","1000000"})
+    int size;
 
     Random random;
-    TDigest tdigest;
     AbstractDistribution distribution;
-    List<Double> valueList;
-    double[] valueArray;
+    IQuantile implementation;
 
     @BeforeExperiment
     public void setUp() throws Exception {
         random = ThreadLocalRandom.current();
-        tdigest = tdigestFactory.create(compression);
-        valueList = new ArrayList();
         distribution = distributionFactory.create(random);
-        // first values are cheap to add, so pre-fill the t-digest to have more realistic results
-        for (int i = 0; i < initialArraySize; ++i) {
-            Double value = distribution.nextDouble();
-            tdigest.add(value);
-            valueList.add(value);
-        }
+        implementation = implFactory.create(size, distribution);
     }
 
     @Benchmark
-    double tdigest(int reps) {
+    double quantile(int reps) {
+        double res = 0;
         for (int i = 0; i < reps; ++i) {
-            this.tdigest.add(this.distribution.nextDouble());
+            res = implementation.compute(quantile);
         }
-        return this.tdigest.quantile(this.quantile);
-    }
-
-    @Benchmark
-    double math(int reps) {
-        for (int i = 0; i < reps; ++i) {
-            this.valueList.add(this.distribution.nextDouble());
-        }
-        this.valueArray = new double[this.valueList.size()];
-        for(int i = 0; i < this.valueList.size(); i++) valueArray[i] = this.valueList.get(i);
-
-        return StatUtils.percentile(valueArray, this.quantile);
+        return res;
     }
 }
