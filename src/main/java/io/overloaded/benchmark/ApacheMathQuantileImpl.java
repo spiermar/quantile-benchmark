@@ -9,7 +9,8 @@ import org.apache.mahout.math.jet.random.AbstractDistribution;
 public class ApacheMathQuantileImpl implements IQuantile {
     private static double[] array;
 
-    public ApacheMathQuantileImpl(int size, AbstractDistribution distribution) {
+    @Override
+    public void init(int size, AbstractDistribution distribution) {
         array = new double[size];
 
         // initialize value array

@@ -11,7 +11,8 @@ public class TDigestQuantileImpl implements IQuantile {
     private static final int compression = 10; // defaulting compression to 10
     private static TDigest tdigest;
 
-    public TDigestQuantileImpl(int size, AbstractDistribution distribution) {
+    @Override
+    public void init(int size, AbstractDistribution distribution) {
         this.tdigest = new AVLTreeDigest(compression); // using AVL Tree as data structure
 
         // initialize tdigest tree

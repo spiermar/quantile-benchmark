@@ -1,9 +1,8 @@
 package io.overloaded.benchmark;
 
-import com.google.caliper.Benchmark;
 import com.google.caliper.BeforeExperiment;
+import com.google.caliper.Benchmark;
 import com.google.caliper.Param;
-
 import org.apache.mahout.math.jet.random.AbstractDistribution;
 import org.apache.mahout.math.jet.random.Normal;
 
@@ -13,7 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * @author mspier
  */
-public final class QuantileBenchmark {
+public class DataQuantileBenchmark {
 
     private static enum ImplFactory {
         T_DIGEST {
@@ -64,12 +63,12 @@ public final class QuantileBenchmark {
         random = ThreadLocalRandom.current();
         distribution = distributionFactory.create(random);
         implementation = implFactory.create();
-        implementation.init(size, distribution);
     }
 
     @Benchmark
-    double quantile(int reps) {
+    double dataQuantile(int reps) {
         double res = 0;
+        implementation.init(size, distribution);
         for (int i = 0; i < reps; ++i) {
             res = implementation.compute(quantile);
         }
